@@ -61,7 +61,7 @@ class Prenota:
     @staticmethod
     def fill_citizenship_form(driver, user_config):
         try:
-            driver.get("https://prenotami.esteri.it/Services/Booking/2392")
+            driver.get("https://prenotami.esteri.it/Services/Booking/929")
             time.sleep(6)
             if not Prenota.check_for_dialog(driver):
                 file_location = os.path.join("files/residencia.pdf")
@@ -163,7 +163,7 @@ class Prenota:
                 logging.info(f"Exception: {e}")
 
             for i in range(200):
-                random_number = random.randint(1, 5)
+                random_number = random.randint(10, 40)
 
                 if user_config["request_type"] == "citizenship":
                     if Prenota.fill_citizenship_form(driver, user_config):
