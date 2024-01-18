@@ -131,8 +131,8 @@ class Prenota:
             logging.info(
                 f"Timestamp: {str(datetime.now())} - Required files available."
             )
-            email = os.getenv("username")
-            password = os.getenv("password")
+            email = os.getenv("app_username")
+            password = os.getenv("app_password")
             user_config = Prenota.load_config("parameters.yaml")
             print(user_config.get("full_address"))
             options = udc.ChromeOptions()
