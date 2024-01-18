@@ -16,6 +16,9 @@ import sys
 import time
 import random
 import undetected_chromedriver as udc
+from playsound import playsound
+from plyer import notification
+import threading
 
 load_dotenv()
 
@@ -25,6 +28,10 @@ logging.basicConfig(
     handlers=[logging.FileHandler("/tmp/out.log"), logging.StreamHandler(sys.stdout)],
 )
 
+def play_sound():
+    while True:
+        playsound('C:\\Users\\Ian\\GitHub\prenotami\\files\\the_quack_test.wav')  # Replace with the path to your sound file
+        time.sleep(10)
 
 class Prenota:
     @staticmethod
@@ -126,6 +133,39 @@ class Prenota:
             return False
 
     @staticmethod
+    def is_on_login_page(driver):
+        try:
+            driver.find_element(By.ID, "login-email")
+            driver.find_element(By.ID, "login-password")
+            return True
+        except NoSuchElementException:
+            return False
+
+    @staticmethod
+    def login(driver, email, password):
+        try:
+            driver.get("https://prenotami.esteri.it/")
+            email_box = WebDriverWait(driver, 60).until(
+                EC.presence_of_element_located((By.ID, "login-email"))
+            )
+            password_box = driver.find_element(By.ID, "login-password")
+            email_box.send_keys(email)
+            password_box.send_keys(password)
+            time.sleep(4)
+            button = driver.find_elements(
+                By.XPATH, "//button[contains(@class,'button primary g-recaptcha')]"
+            )
+            button[0].click()
+            logging.info(
+                f"Timestamp: {str(datetime.now())} - Successfully logged in."
+            )
+            time.sleep(10)
+        except Exception as e:
+            logging.info(f"Exception: {e}")
+            return False
+        return True
+
+    @staticmethod
     def run():
         if Prenota.check_file_exists("files/residencia.pdf"):
             logging.info(
@@ -142,28 +182,19 @@ class Prenota:
             driver = udc.Chrome(use_subprocess=True, options=options)
             driver.delete_all_cookies()
 
-            try:
-                driver.get("https://prenotami.esteri.it/")
-                email_box = WebDriverWait(driver, 60).until(
-                    EC.presence_of_element_located((By.ID, "login-email"))
-                )
-                password_box = driver.find_element(By.ID, "login-password")
-                email_box.send_keys(email)
-                password_box.send_keys(password)
-                time.sleep(4)
-                button = driver.find_elements(
-                    By.XPATH, "//button[contains(@class,'button primary g-recaptcha')]"
-                )
-                button[0].click()
-                logging.info(
-                    f"Timestamp: {str(datetime.now())} - Successfully logged in."
-                )
-                time.sleep(10)
-            except Exception as e:
-                logging.info(f"Exception: {e}")
+            if not Prenota.login(driver, email, password):
+                sys.exit("Failed to login")
 
             for i in range(200):
                 random_number = random.randint(10, 40)
+
+                if Prenota.is_on_login_page(driver):
+                    logging.info(
+                        "Detected redirection to login page. Attempting to re-login."
+                    )
+                    if not Prenota.login(driver, email, password):
+                        logging.error("Failed to re-login")
+                        break
 
                 if user_config["request_type"] == "citizenship":
                     if Prenota.fill_citizenship_form(driver, user_config):
@@ -173,6 +204,16 @@ class Prenota:
                         break
 
                 time.sleep(random_number)
+
+            # Start playing sound in a separate thread
+            threading.Thread(target=play_sound, daemon=True).start()
+
+            # Show a notification
+            notification.notify(
+                title='Appointment Found',
+                message='An appointment is available. Please fill the remaining details.',
+                app_name='Prenota Appointment Checker'
+            )
 
             user_input = input(
                 f"Timestamp: {str(datetime.now())} - Go ahead and fill manually the rest of the process. "
