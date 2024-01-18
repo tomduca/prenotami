@@ -19,6 +19,8 @@ import undetected_chromedriver as udc
 from playsound import playsound
 from plyer import notification
 import threading
+import simpleaudio as sa
+import numpy as np
 
 load_dotenv()
 
@@ -29,9 +31,45 @@ logging.basicConfig(
 )
 
 def play_sound():
+    fs = 44100  # Sampling rate
+    duration = 2  # Duration in seconds of the bell tone
+
+    # Frequencies for a simple bell-like sound
+    frequencies = [659.25, 830.61, 1046.50]  # E5, G#5, C6 notes
+
+    # Generate time array
+    t = np.linspace(0, duration, int(fs * duration), False)
+
+    # Generate ADSR envelope
+    attack_time = 0.1
+    decay_time = 0.1
+    sustain_level = 0.7
+    release_time = 0.8
+
+    attack = np.linspace(0, 1, int(attack_time * fs), False)
+    decay = np.linspace(1, sustain_level, int(decay_time * fs), False)
+    sustain = np.full(int((duration - attack_time - decay_time - release_time) * fs), sustain_level)
+    release = np.linspace(sustain_level, 0, int(release_time * fs), False)
+
+    envelope = np.concatenate([attack, decay, sustain, release])
+
+    # Generate multiple sine waves, apply envelope and sum them
+    tone = sum(np.sin(frequency * t * 2 * np.pi) for frequency in frequencies)
+    tone = tone * envelope
+
+    # Normalize to 16-bit range
+    audio = tone * (2**15 - 1) / np.max(np.abs(tone))
+    audio = audio.astype(np.int16)
+
     while True:
-        playsound('C:\\Users\\Ian\\GitHub\prenotami\\files\\the_quack_test.wav')  # Replace with the path to your sound file
-        time.sleep(10)
+        # Start playback
+        play_obj = sa.play_buffer(audio, 1, 2, fs)
+
+        # Wait for playback to finish
+        play_obj.wait_done()
+
+        # Wait for 4 seconds before playing again
+        time.sleep(4)
 
 class Prenota:
     @staticmethod
