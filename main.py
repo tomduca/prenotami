@@ -9,6 +9,7 @@ from selenium.webdriver import ChromeOptions
 from selenium.webdriver.support.ui import Select
 from datetime import datetime
 from selenium.common.exceptions import NoSuchElementException
+from selenium.common.exceptions import TimeoutException
 from time import sleep
 import logging
 import yaml
@@ -30,6 +31,22 @@ logging.basicConfig(
     handlers=[logging.FileHandler("/tmp/out.log"), logging.StreamHandler(sys.stdout)],
 )
 
+def handle_timeout(driver, attempt):
+    try:
+        logging.info("Attempting to recover from timeout...")
+        if Prenota.is_on_login_page(driver):
+            Prenota.login(driver, os.getenv("app_username"), os.getenv("app_password"))
+        else:
+            driver.refresh()  # Refresh the current page
+    except Exception as e:
+        logging.error(f"Error while recovering from timeout: {e}")
+        if attempt < 3:  # Limit the number of retries
+            time.sleep(10)  # Wait for 10 seconds before retrying
+            handle_timeout(driver, attempt + 1)
+        else:
+            driver.quit()
+            sys.exit("Failed to recover from timeout after multiple attempts.")
+
 def play_sound():
     fs = 44100  # Sampling rate
     duration = 2  # Duration in seconds of the bell tone
@@ -48,7 +65,7 @@ def play_sound():
 
     attack = np.linspace(0, 1, int(attack_time * fs), False)
     decay = np.linspace(1, sustain_level, int(decay_time * fs), False)
-    sustain = np.full(int((duration - attack_time - decay_time - release_time) * fs), sustain_level)
+    sustain = np.full(int((duration - attack_time - decay_time - release_time) * fs) + 1, sustain_level)
     release = np.linspace(sustain_level, 0, int(release_time * fs), False)
 
     envelope = np.concatenate([attack, decay, sustain, release])
@@ -198,28 +215,23 @@ class Prenota:
                 f"Timestamp: {str(datetime.now())} - Successfully logged in."
             )
             time.sleep(10)
+        except TimeoutException as e:
+            logging.error(f"TimeoutException during login: {e}")
+            return False
         except Exception as e:
-            logging.info(f"Exception: {e}")
+            logging.error(f"Exception during login: {e}")
             return False
         return True
 
     @staticmethod
-    def run():
+    def run(driver):
         if Prenota.check_file_exists("files/residencia.pdf"):
             logging.info(
                 f"Timestamp: {str(datetime.now())} - Required files available."
             )
             email = os.getenv("app_username")
             password = os.getenv("app_password")
-            user_config = Prenota.load_config("parameters.yaml")
-            print(user_config.get("full_address"))
-            options = udc.ChromeOptions()
-            options.headless = False
-            options.add_argument("--disable-gpu")
-            options.add_argument("--disable-blink-features=AutomationControlled")
-            driver = udc.Chrome(use_subprocess=True, options=options)
-            driver.delete_all_cookies()
-
+            
             if not Prenota.login(driver, email, password):
                 sys.exit("Failed to login")
 
@@ -234,6 +246,7 @@ class Prenota:
                         logging.error("Failed to re-login")
                         break
 
+                user_config = Prenota.load_config("parameters.yaml")
                 if user_config["request_type"] == "citizenship":
                     if Prenota.fill_citizenship_form(driver, user_config):
                         break
@@ -255,7 +268,7 @@ class Prenota:
 
             user_input = input(
                 f"Timestamp: {str(datetime.now())} - Go ahead and fill manually the rest of the process. "
-                f"When finished, type quit to exit the program and close the browser. "
+                f"When finished, type 'quit' to exit the program and close the browser. "
             )
             while True:
                 if user_input == "quit":
@@ -267,6 +280,15 @@ class Prenota:
             )
             sys.exit(0)
 
-
 if __name__ == "__main__":
-    Prenota.run()
+    email = os.getenv("app_username")
+    password = os.getenv("app_password")
+
+    options = udc.ChromeOptions()
+    options.headless = False
+    options.add_argument("--disable-gpu")
+    options.add_argument("--disable-blink-features=AutomationControlled")
+    driver = udc.Chrome(use_subprocess=True, options=options)
+    driver.delete_all_cookies()
+
+    Prenota.run(driver)
