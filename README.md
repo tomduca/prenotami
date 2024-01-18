@@ -19,8 +19,8 @@ Python bot to log into [prenot@mi](prenotami.esteri.it) and schedule citizenship
     source .venv/bin/activate
     pip install -r requirements.txt
     mkdir files
-    echo "username=ADD_USERNAME_HERE" > .env
-    echo "password=ADD_PASSWORD_HERE" >> .env
+    echo 'app_username=ADD_USERNAME_HERE' > .env
+    echo 'app_password=ADD_PASSWORD_HERE' >> .env
     ```
 
 - Modify the parameters.yaml file to fit your specific needs.
