@@ -123,7 +123,7 @@ class Prenota:
     @staticmethod
     def fill_citizenship_form(driver, user_config):
         try:
-            driver.get("https://prenotami.esteri.it/Services/Booking/929")
+            driver.get("https://prenotami.esteri.it/Services/Booking/791")
             time.sleep(6)
             if not Prenota.check_for_dialog(driver):
                 file_location = os.path.join("files/residencia.pdf")
